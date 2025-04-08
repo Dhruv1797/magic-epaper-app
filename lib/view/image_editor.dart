@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:magic_epaper_app/draw_canvas/view/drawing_page.dart';
 import 'package:magic_epaper_app/view/widget/image_list.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
@@ -17,13 +19,17 @@ class ImageEditor extends StatelessWidget {
     final orgImg = imgLoader.image;
 
     if (orgImg != null) {
-      final image = img.copyResize(imgLoader.image!, width: epd.width, height: epd.height);
+      final image = img.copyResize(imgLoader.image!,
+          width: epd.width, height: epd.height);
       for (final method in epd.processingMethods) {
         processedImgs.add(method(image));
       }
     }
 
-    final imgList = ImageList(imgList: processedImgs, epd: epd,);
+    final imgList = ImageList(
+      imgList: processedImgs,
+      epd: epd,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Image'),
@@ -34,13 +40,29 @@ class ImageEditor extends StatelessWidget {
             },
             child: const Text("Import Image"),
           ),
+          TextButton(
+            onPressed: () async {
+              final capturedImage = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => DrawingPage(
+                          epd: epd,
+                        )),
+              );
+
+              if (capturedImage != null && capturedImage is Uint8List) {
+                await context.read<ImageLoader>().loadFromBytes(
+                      bytes: capturedImage,
+                      width: epd.width,
+                      height: epd.height,
+                    );
+              }
+            },
+            child: const Text("Draw Canvas"),
+          ),
         ],
       ),
-
-      body: Center(
-        child: imgList
-      ),
-
+      body: Center(child: imgList),
     );
   }
 }

@@ -1,4 +1,4 @@
-
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:convert/convert.dart';
@@ -6,6 +6,8 @@ import 'package:flutter_nfc_kit/flutter_nfc_kit.dart';
 import 'package:image/image.dart' as img;
 import 'package:magic_epaper_app/util/epd/edp.dart';
 import 'package:magic_epaper_app/util/magic_epaper_firmware.dart';
+import 'package:app_settings/app_settings.dart';
+import 'package:flutter/services.dart';
 
 class Protocol {
   final fw = MagicEpaperFirmware();
@@ -25,7 +27,8 @@ class Protocol {
 
   Future<Uint8List> _readMsg(Uint8List tagId) async {
     // Send 0 will return all message present in the tag's mailbox
-    return await _transceive(fw.tagChip.readMsgDmd, tagId, Uint8List.fromList([0]));
+    return await _transceive(
+        fw.tagChip.readMsgDmd, tagId, Uint8List.fromList([0]));
   }
 
   Future<Uint8List> _readDynCfg(Uint8List tagId, int address) async {
@@ -33,7 +36,8 @@ class Protocol {
     return await FlutterNfcKit.transceive(raw, timeout: timeout);
   }
 
-  Future<Uint8List> _writeDynCfg(Uint8List tagId, int address, int value) async {
+  Future<Uint8List> _writeDynCfg(
+      Uint8List tagId, int address, int value) async {
     final raw = fw.tagChip.buildWriteDynCfgCmd(tagId, address, value);
     return await FlutterNfcKit.transceive(raw, timeout: timeout);
   }
@@ -70,11 +74,13 @@ class Protocol {
 
   Future<void> writeFrame(Uint8List id, Uint8List frame, int cmd) async {
     final chunks = _split(data: frame);
-    await _writeMsg(id, Uint8List.fromList([fw.epdCmd, cmd])); // enter transmission 1
+    await _writeMsg(
+        id, Uint8List.fromList([fw.epdCmd, cmd])); // enter transmission 1
     await _sleep();
     for (int i = 0; i < chunks.length; i++) {
       Uint8List chunk = chunks[i];
-      print("Writing chunk ${i + 1}/${chunks.length} len ${chunk.lengthInBytes}: ${chunk.map((e) => e.toRadixString(16)).toList()}");
+      print(
+          "Writing chunk ${i + 1}/${chunks.length} len ${chunk.lengthInBytes}: ${chunk.map((e) => e.toRadixString(16)).toList()}");
 
       await _writeMsg(id, chunk);
       await wait4msgGathered(id);
@@ -86,7 +92,8 @@ class Protocol {
     List<Uint8List> chunks = [];
     for (int i = 0; i < data.length; i += chunkSize) {
       int end = (i + chunkSize > data.length) ? data.length : i + chunkSize;
-      Uint8List chunk = Uint8List.fromList([fw.epdSend, ...data.sublist(i, end)]);
+      Uint8List chunk =
+          Uint8List.fromList([fw.epdSend, ...data.sublist(i, end)]);
       chunks.add(chunk);
     }
     return chunks;
@@ -94,8 +101,19 @@ class Protocol {
 
   void writeImages(img.Image image) async {
     var availability = await FlutterNfcKit.nfcAvailability;
+
     if (availability != NFCAvailability.available) {
-      throw "NFC is not available";
+      print("NFC is not available. Opening settings...");
+
+      if (Platform.isAndroid) {
+        await NFCSettingsLauncher
+            .openNFCSettings(); // Opens NFC settings directly
+      } else if (Platform.isIOS) {
+        AppSettings
+            .openAppSettings(); // Opens general settings (iOS doesn't support direct NFC settings)
+      }
+
+      return;
     }
 
     print("Bring your phone near to the Magic Epaper Hardware");
@@ -108,7 +126,8 @@ class Protocol {
     }
 
     await enableEnergyHarvesting(id);
-    await Future.delayed(const Duration(seconds: 2)); // waiting for the power supply stable
+    await Future.delayed(
+        const Duration(seconds: 2)); // waiting for the power supply stable
 
     final epdColors = epd.extractEpaperColorFrames(image);
     final transmissionLines = epd.controller.transmissionLines.iterator;
@@ -117,7 +136,20 @@ class Protocol {
       await writeFrame(id, c, transmissionLines.current);
     }
 
-    await _writeMsg(id, Uint8List.fromList([fw.epdCmd, epd.controller.refresh]));
+    await _writeMsg(
+        id, Uint8List.fromList([fw.epdCmd, epd.controller.refresh]));
     await FlutterNfcKit.finish();
+  }
+}
+
+class NFCSettingsLauncher {
+  static const platform = MethodChannel('com.yourapp.nfc/settings');
+
+  static Future<void> openNFCSettings() async {
+    try {
+      await platform.invokeMethod('openNFCSettings');
+    } on PlatformException catch (e) {
+      print("Failed to open NFC settings: ${e.message}");
+    }
   }
 }
