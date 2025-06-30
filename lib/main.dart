@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:magic_epaper_app/provider/getitlocator.dart';
 import 'package:magic_epaper_app/provider/image_loader.dart';
 import 'package:magic_epaper_app/view/about_us_screen.dart';
-import 'package:magic_epaper_app/view/settings_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:magic_epaper_app/view/display_selection_screen.dart';
+import 'package:magic_epaper_app/view/settings_screen.dart';
+import 'package:magic_epaper_app/view/widget/ndef_screen.dart';
+import 'package:magic_epaper_app/view/widget/nfc_screen.dart';
+import 'package:magic_epaper_app/view/widget/phone_to_phone_screen.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   setupLocator();
@@ -22,7 +25,7 @@ class MyApp extends StatelessWidget {
       title: 'Magic Epaper',
       initialRoute: '/',
       routes: {
-        '/': (context) => const DisplaySelectionScreen(),
+        '/': (context) => DisplaySelectionScreen(),
         '/aboutUs': (context) => const AboutUsScreen(),
         '/settings': (context) => const SettingsScreen(),
       },
