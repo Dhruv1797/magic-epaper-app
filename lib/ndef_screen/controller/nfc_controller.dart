@@ -71,6 +71,34 @@ class NFCController extends ChangeNotifier {
       _setResult('${StringConstants.errorCreatingWifiRecord}$e');
     }
   }
+// Updated method in your NFCController class
+Future<void> writeAppLauncherRecord(String packageName, {String? appUri}) async {
+  if (_availability != NFCAvailability.available ||
+      packageName.trim().isEmpty) {
+    return;
+  }
+  try {
+    // Use the new method that creates proper AAR records
+    final records = NDEFRecordFactory.createAppLauncherRecords(packageName, appUri: appUri);
+    await _performWrite(records);
+  } catch (e) {
+    _setResult('${StringConstants.errorCreatingAppRecord}$e');
+  }
+}
+
+// Alternative: If you want to keep the single record approach
+Future<void> writeAppLauncherRecordSingle(String packageName) async {
+  if (_availability != NFCAvailability.available ||
+      packageName.trim().isEmpty) {
+    return;
+  }
+  try {
+    final record = NDEFRecordFactory.createAppLauncherRecord(packageName);
+    await _performWrite([record]);
+  } catch (e) {
+    _setResult('${StringConstants.errorCreatingAppRecord}$e');
+  }
+}
 
   Future<void> writeMultipleRecords(
       String text, String url, String wifiSSID, String wifiPassword) async {

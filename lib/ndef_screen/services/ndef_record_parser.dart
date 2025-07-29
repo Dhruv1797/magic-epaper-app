@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:magic_epaper_app/constants/string_constants.dart';
 import 'package:ndef/ndef.dart' as ndef;
 import 'dart:typed_data';
@@ -13,6 +14,71 @@ class NDEFRecordFactory {
       language: language,
       encoding: ndef.TextEncoding.UTF8,
     );
+  }
+
+  // Fixed method for direct app launching
+  static ndef.NDEFRecord createAppLauncherRecord(String packageName) {
+    if (packageName.trim().isEmpty) {
+      throw ArgumentError(StringConstants.appCannotBeEmpty);
+    }
+
+    if (Platform.isAndroid) {
+      // Create Android Application Record (AAR) for direct app launching
+      return _createAndroidApplicationRecord(packageName.trim());
+    } else {
+      // iOS URL scheme format
+      String appUri;
+      if (packageName.contains('://')) {
+        appUri = packageName;
+      } else {
+        appUri = '${StringConstants.iosAppLauncherPrefix}$packageName';
+      }
+      return ndef.UriRecord.fromString(appUri);
+    }
+  }
+
+  // Create Android Application Record (AAR) for direct app launching
+  static ndef.NDEFRecord _createAndroidApplicationRecord(String packageName) {
+    // Convert package name to UTF-8 bytes
+    List<int> packageBytes = packageName.codeUnits;
+
+    return ndef.NDEFRecord(
+      tnf: ndef.TypeNameFormat.nfcExternal,
+      type: Uint8List.fromList('android.com:pkg'.codeUnits),
+      id: Uint8List(0),
+      payload: Uint8List.fromList(packageBytes),
+    );
+  }
+
+  // Alternative method: Create both AAR and URI records for better compatibility
+  static List<ndef.NDEFRecord> createAppLauncherRecords(String packageName,
+      {String? appUri}) {
+    if (packageName.trim().isEmpty) {
+      throw ArgumentError(StringConstants.appCannotBeEmpty);
+    }
+
+    List<ndef.NDEFRecord> records = [];
+
+    if (Platform.isAndroid) {
+      // Add URI record first (if app is not installed, this will be used)
+      if (appUri != null && appUri.trim().isNotEmpty) {
+        records.add(ndef.UriRecord.fromString(appUri.trim()));
+      }
+
+      // Add Android Application Record (AAR) - this ensures the app opens directly if installed
+      records.add(_createAndroidApplicationRecord(packageName.trim()));
+    } else {
+      // iOS URL scheme format
+      String iosAppUri;
+      if (packageName.contains('://')) {
+        iosAppUri = packageName;
+      } else {
+        iosAppUri = '${StringConstants.iosAppLauncherPrefix}$packageName';
+      }
+      records.add(ndef.UriRecord.fromString(iosAppUri));
+    }
+
+    return records;
   }
 
   static ndef.NDEFRecord createUrlRecord(String url) {
@@ -69,6 +135,7 @@ class NDEFRecordFactory {
   }
 }
 
+// Rest of your NDEFRecordParser class remains the same...
 class NDEFRecordParser {
   static String getRecordTypeString(ndef.NDEFRecord record) {
     try {
